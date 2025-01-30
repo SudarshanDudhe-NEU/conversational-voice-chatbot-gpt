@@ -15,8 +15,8 @@
 openai==1.60.2
 langchain==0.1.16
 langchain-community==0.0.38
-langchain-core==0.1.53
-langchain-text-splitters==0.0.2
+# langchain-core==0.1.53
+# langchain-text-splitters==0.0.2
 chromadb==0.6.3
 tiktoken==0.8.0
 pypdf==4.2.0
@@ -44,3 +44,8 @@ uvicorn==0.34.0
 # Additional dependencies for compatibility
 pydantic==2.10.6
 typing_extensions==4.12.2
+
+
+azure-cognitiveservices-speech
+# python-dotenv==0.19.0
+# azure-openai
