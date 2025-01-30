@@ -7,7 +7,7 @@ import hmac
 
 import os
 from helpers import text_to_speech, autoplay_audio, speech_to_text
-from generate_answer import base_model_chatbot, with_pdf_chatbot
+from generate_answers import base_model_chatbot
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import *
 
@@ -96,9 +96,9 @@ def main(answer_mode: str):
                 if answer_mode == 'base_model':
                     final_response = base_model_chatbot(st.session_state.messages)
                     print(final_response)
-                elif answer_mode == 'pdf_chat':
-                    print('--------->', st.session_state.messages)
-                    final_response = with_pdf_chatbot(st.session_state.messages)
+                # elif answer_mode == 'pdf_chat':
+                #     print('--------->', st.session_state.messages)
+                #     final_response = with_pdf_chatbot(st.session_state.messages)
             with st.spinner("Generating audio response..."):
                 audio_file = text_to_speech(final_response)
                 autoplay_audio(audio_file)
