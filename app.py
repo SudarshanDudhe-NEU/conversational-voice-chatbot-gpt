@@ -1,120 +1,96 @@
-# https://blog.futuresmart.ai/building-a-conversational-voice-chatbot-integrating-openais-speech-to-text-text-to-speech
-# Reference: See above
-
 import streamlit as st
 import hmac
-# import argparse
-
 import os
-from helpers import text_to_speech, autoplay_audio, speech_to_text
-from generate_answer import base_model_chatbot, with_pdf_chatbot
+from helpers import text_to_speech, autoplay_audio, speech_to_text, base_model_chatbot, with_pdf_chatbot
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import *
 
+# Persona configurations
+PERSONAS = {
+    "neutral": {
+        "system": "You are a helpful assistant.",
+        "instruction": "Return the text exactly as received without modification."
+    },
+    "cheerful": {
+        "system": "You are an exceptionally cheerful assistant.",
+        "instruction": "Make this text sound upbeat and positive."
+    },
+    "formal": {
+        "system": "You are a formal business assistant.",
+        "instruction": "Convert this text to professional business language."
+    },
+    "pirate": {
+        "system": "You are a pirate from the Caribbean.",
+        "instruction": "Convert this text into pirate slang."
+    }
+}
+
 def main(answer_mode: str):
-    # Float feature initialization
+    # Initialize floating UI
     float_init()
 
-
-    def check_password():
-        """Returns `True` if the user had a correct password."""
-
-        def login_form():
-            """Form with widgets to collect user information"""
-            with st.form("Credentials"):
-                st.text_input("Username", key="username")
-                st.text_input("Password", type="password", key="password")
-                st.form_submit_button("Log in", on_click=password_entered)
-
-        def password_entered():
-            """Checks whether a password entered by the user is correct."""
-            if st.session_state["username"] in st.secrets[
-                "passwords"
-            ] and hmac.compare_digest(
-                st.session_state["password"],
-                st.secrets.passwords[st.session_state["username"]],
-            ):
-                st.session_state["password_correct"] = True
-                del st.session_state["password"]  
-                del st.session_state["username"]
-            else:
-                st.session_state["password_correct"] = False
-
-        # Return True if the username + password is validated.
-        if st.session_state.get("password_correct", False):
-            return True
-
-        # Show inputs for username + password.
-        login_form()
-        if "password_correct" in st.session_state:
-            st.error("😕 User not known or password incorrect")
-        return False
-
-
-    # if not check_password():
-    #     st.stop()
-
-
+    # Initialize session state
     def initialize_session_state():
         if "messages" not in st.session_state:
             st.session_state.messages = [
                 {"role": "assistant", "content": "Hi! How may I assist you today?"}
             ]
-
+        if "selected_persona" not in st.session_state:
+            st.session_state.selected_persona = "neutral"  # Default persona
 
     initialize_session_state()
 
+    # App Title
     st.title("OpenAI Conversational Chatbot 🤖")
+
+    # **Persona Selector**
+    st.session_state.selected_persona = st.selectbox(
+        "Select Conversation Style:",
+        list(PERSONAS.keys()),
+        index=list(PERSONAS.keys()).index(st.session_state.selected_persona),
+    )
 
     # Create footer container for the microphone
     footer_container = st.container()
     with footer_container:
         audio_bytes = audio_recorder()
 
+    # Display chat history
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.write(message["content"])
 
+    # Process audio input
     if audio_bytes:
-        # print(audio_bytes)
-        # Write the audio bytes to a file
-        with st.spinner("Transcribing..."):
+        with st.spinner("🎤 Transcribing..."):
             webm_file_path = "temp_audio.mp3"
             with open(webm_file_path, "wb") as f:
                 f.write(audio_bytes)
 
-            transcript = speech_to_text(webm_file_path)
+            transcript = speech_to_text(webm_file_path, st.session_state.selected_persona)  # Apply persona-based transcription
             if transcript:
                 st.session_state.messages.append({"role": "user", "content": transcript})
                 with st.chat_message("user"):
                     st.write(transcript)
                 os.remove(webm_file_path)
 
+    # Generate response
     if st.session_state.messages[-1]["role"] != "assistant":
         with st.chat_message("assistant"):
-            with st.spinner("Thinking🤔..."):
+            with st.spinner("🤔 Thinking..."):
                 if answer_mode == 'base_model':
-                    final_response = base_model_chatbot(st.session_state.messages)
-                    print(final_response)
+                    final_response = base_model_chatbot(st.session_state.messages, st.session_state.selected_persona)
                 elif answer_mode == 'pdf_chat':
-                    print('--------->', st.session_state.messages)
-                    final_response = with_pdf_chatbot(st.session_state.messages)
-            with st.spinner("Generating audio response..."):
+                    final_response = with_pdf_chatbot(st.session_state.messages, st.session_state.selected_persona)
+
+            # Convert response to speech
+            with st.spinner("🎙️ Generating audio response..."):
                 audio_file = text_to_speech(final_response)
                 autoplay_audio(audio_file)
+
             st.write(final_response)
             st.session_state.messages.append({"role": "assistant", "content": final_response})
             os.remove(audio_file)
 
-    # # Float the footer container and provide CSS to target it with
-    # footer_container.float("bottom: 0rem;")
- 
 if __name__ == "__main__":
-    # parser = argparse.ArgumentParser(description="Run OpenAI Conversational Chatbot")
-    # parser.add_argument('--answer_mode', type=str, default='base_model',
-    #                     choices=['base_model', 'pdf_chat'],
-    #                     help="Specify the answer mode ('base_model' or 'pdf_chat')")
-
-    # args = parser.parse_args()
-
-    main(answer_mode='base_model') # Or: answer_mode='base_model'
+    main(answer_mode='base_model')  # Default to base model
